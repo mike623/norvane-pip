@@ -577,26 +577,27 @@
   }
 
   function applyRemoteState(next, announceMessage) {
-    if (!next || typeof next !== "object") return;
-    if (typeof next.always_on_top === "boolean") {
-      state.alwaysOnTop = next.always_on_top;
-    }
-    if (typeof next.visible_on_all_workspaces === "boolean") {
-      state.visibleOnAllWorkspaces = next.visible_on_all_workspaces;
-    }
-    if (typeof next.compact_mode === "boolean") {
-      state.compactMode = next.compact_mode;
-    }
-    if (typeof next.snap_to_corners === "boolean") {
-      state.snapToCorners = next.snap_to_corners;
-    }
-    if (typeof next.platform === "string") {
-      state.platform = next.platform;
-    }
-    if (typeof next.hud_hidden === "boolean") {
-      applyHudClass(next.hud_hidden, false);
-    } else {
-      renderChromeState();
+    if (next && typeof next === "object") {
+      if (typeof next.always_on_top === "boolean") {
+        state.alwaysOnTop = next.always_on_top;
+      }
+      if (typeof next.visible_on_all_workspaces === "boolean") {
+        state.visibleOnAllWorkspaces = next.visible_on_all_workspaces;
+      }
+      if (typeof next.compact_mode === "boolean") {
+        state.compactMode = next.compact_mode;
+      }
+      if (typeof next.snap_to_corners === "boolean") {
+        state.snapToCorners = next.snap_to_corners;
+      }
+      if (typeof next.platform === "string") {
+        state.platform = next.platform;
+      }
+      if (typeof next.hud_hidden === "boolean") {
+        applyHudClass(next.hud_hidden, false);
+      } else {
+        renderChromeState();
+      }
     }
     if (announceMessage) {
       showToast(announceMessage);

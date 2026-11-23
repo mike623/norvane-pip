@@ -15,6 +15,7 @@ Full-resolution recording: [docs/e2e-demo.mp4](docs/e2e-demo.mp4) (compact PiP m
 - **Auto sticky to screen borders**: Dragging the PiP window in compact mode smoothly glides it to the nearest screen border (left, right, top, or bottom, 16px inset respecting menu bar / Dock / taskbar), preserving your position along that edge and magnetically locking into corners when within 48px of an adjacent edge. Toggleable via `View -> Sticky to Screen Borders`.
 - **macOS workspace visibility**: Enabled by default via Tauri's `set_visible_on_all_workspaces(true)` plus macOS AppKit `NSWindowCollectionBehavior` (`CanJoinAllSpaces | FullScreenAuxiliary`, clearing mutually exclusive `MoveToActiveSpace` / `FullScreenPrimary` flags).
 - **Persistent preferences**: Remembers all toggles (`Hide Game HUD`, `Always on Top`, `Visible on All Workspaces`, `Sticky to Screen Borders`, `Compact PiP / Expanded`), custom window sizes for both modes, and last window position across restarts (stored atomically in the OS app config directory as `preferences.json`, with multi-monitor bounds validation).
+- **Signed auto-updates & CI releases**: Uses `tauri-plugin-updater` against GitHub Releases (`latest.json`) with signed bundles built via GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)) for macOS (Apple Silicon + Intel), Windows, and Linux. Also checkable manually via `View -> Check for Updates…`.
 
 ## Shortcuts & Menu Controls
 

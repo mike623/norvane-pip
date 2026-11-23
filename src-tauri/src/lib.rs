@@ -35,6 +35,7 @@ const MENU_COMPACT_SIZE: &str = "view.compact_size";
 const MENU_RESET_COMPACT_SIZE: &str = "view.reset_compact_size";
 const MENU_RELOAD_GAME: &str = "view.reload_game";
 const MENU_SHORTCUTS: &str = "view.shortcuts";
+const MENU_CHECK_UPDATES: &str = "app.check_updates";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenCorner {
@@ -322,6 +323,71 @@ pub fn build_sync_script(snapshot: &PipStateSnapshot, toast: Option<&str>) -> St
         None => "null".to_string(),
     };
     format!("window.__norvanePip && window.__norvanePip.syncState({state_json}, {toast_json});")
+}
+
+fn show_webview_toast(app: &AppHandle, message: &str) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        let msg_json = serde_json::to_string(message).unwrap_or_else(|_| "\"\"".to_string());
+        let script = format!(
+            "window.__norvanePip && window.__norvanePip.syncState(null, {msg_json});"
+        );
+        let _ = window.eval(&script);
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn spawn_update_check(app: AppHandle, interactive: bool) {
+    use tauri_plugin_updater::UpdaterExt;
+
+    tauri::async_runtime::spawn(async move {
+        if !interactive {
+            std::thread::sleep(std::time::Duration::from_secs(4));
+        } else {
+            show_webview_toast(&app, "Checking for updates…");
+        }
+
+        let updater = match app.updater() {
+            Ok(u) => u,
+            Err(err) => {
+                if interactive {
+                    show_webview_toast(&app, "Updater unavailable");
+                }
+                eprintln!("[Norvane PiP] updater init error: {err}");
+                return;
+            }
+        };
+
+        match updater.check().await {
+            Ok(Some(update)) => {
+                let version = update.version.clone();
+                show_webview_toast(&app, &format!("Downloading v{version}…"));
+                match update.download_and_install(|_, _| {}, || {}).await {
+                    Ok(()) => {
+                        show_webview_toast(&app, &format!("Restarting for v{version}…"));
+                        std::thread::sleep(std::time::Duration::from_millis(600));
+                        app.restart();
+                    }
+                    Err(err) => {
+                        if interactive {
+                            show_webview_toast(&app, "Update install failed");
+                        }
+                        eprintln!("[Norvane PiP] update install error: {err}");
+                    }
+                }
+            }
+            Ok(None) => {
+                if interactive {
+                    show_webview_toast(&app, "Norvane PiP is up to date");
+                }
+            }
+            Err(err) => {
+                if interactive {
+                    show_webview_toast(&app, "Update check failed");
+                }
+                eprintln!("[Norvane PiP] update check error: {err}");
+            }
+        }
+    });
 }
 
 fn sync_menu_and_webview(app: &AppHandle, snapshot: &PipStateSnapshot, toast: Option<&str>) {
@@ -850,6 +916,13 @@ fn build_app_menu(
         true,
         Some("CmdOrCtrl+Shift+/"),
     )?;
+    let check_updates = MenuItem::with_id(
+        app,
+        MENU_CHECK_UPDATES,
+        "Check for Updates…",
+        true,
+        None::<&str>,
+    )?;
 
     let view_menu = Submenu::with_items(
         app,
@@ -866,6 +939,8 @@ fn build_app_menu(
             &PredefinedMenuItem::separator(app)?,
             &reload_game,
             &shortcuts,
+            &PredefinedMenuItem::separator(app)?,
+            &check_updates,
         ],
     )?;
 
@@ -937,7 +1012,12 @@ fn build_app_menu(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    builder
         .manage(ManagedPipState::new(PipState::default()))
         .manage(SnapController::default())
         .invoke_handler(tauri::generate_handler![
@@ -1051,6 +1131,9 @@ pub fn run() {
                 );
             }
 
+            #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
+            spawn_update_check(app.handle().clone(), false);
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -1142,6 +1225,10 @@ pub fn run() {
                             "window.__norvanePip && window.__norvanePip.toggleShortcuts();",
                         );
                     }
+                }
+                MENU_CHECK_UPDATES => {
+                    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+                    spawn_update_check(app.clone(), true);
                 }
                 _ => {}
             }
