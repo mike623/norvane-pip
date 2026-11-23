@@ -1,0 +1,20 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal capability allowing the Norvane Idle webview to invoke Norvane PiP window controls.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://ro-idle.pages.dev/*"]
+  },
+  "permissions": [
+    "core:default",
+    "allow-get-pip-state",
+    "allow-set-hud-hidden",
+    "allow-toggle-always-on-top",
+    "allow-toggle-all-workspaces",
+    "allow-toggle-compact-size",
+    "allow-start-pip-drag",
+    "allow-close-window",
+    "allow-minimize-window"
+  ]
+}

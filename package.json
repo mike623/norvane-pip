@@ -1,0 +1,16 @@
+{
+  "name": "norvane-pip",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Cross-platform Tauri v2 Picture-in-Picture desktop wrapper for Norvane Idle (https://ro-idle.pages.dev/)",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.6"
+  }
+}

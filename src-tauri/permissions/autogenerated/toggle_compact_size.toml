@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-toggle-compact-size"
+description = "Enables the toggle_compact_size command without any pre-configured scope."
+commands.allow = ["toggle_compact_size"]
+
+[[permission]]
+identifier = "deny-toggle-compact-size"
+description = "Denies the toggle_compact_size command without any pre-configured scope."
+commands.deny = ["toggle_compact_size"]

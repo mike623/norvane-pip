@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Rust / Tauri build outputs
+src-tauri/target/
+src-tauri/gen/
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

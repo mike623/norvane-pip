@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-pip-state"
+description = "Enables the get_pip_state command without any pre-configured scope."
+commands.allow = ["get_pip_state"]
+
+[[permission]]
+identifier = "deny-get-pip-state"
+description = "Denies the get_pip_state command without any pre-configured scope."
+commands.deny = ["get_pip_state"]

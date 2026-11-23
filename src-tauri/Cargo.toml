@@ -1,0 +1,22 @@
+[package]
+name = "norvane-pip"
+version = "0.1.0"
+description = "Cross-platform Tauri v2 Picture-in-Picture desktop wrapper for Norvane Idle"
+authors = ["Norvane PiP Contributors"]
+edition = "2021"
+rust-version = "1.90"
+
+[lib]
+name = "norvane_pip_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", default-features = false, features = ["NSWindow", "NSButton", "NSControl", "NSView", "NSEvent"] }
