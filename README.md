@@ -1,5 +1,8 @@
 # Norvane PiP
 
+> [!NOTE]
+> **Unofficial App**: Norvane PiP is an independent, fan-made desktop wrapper for [Norvane Idle](https://ro-idle.pages.dev/). It is not official and is not affiliated with, endorsed by, or maintained by the author of Norvane Idle or Gravity Co., Ltd.
+
 A cross-platform Tauri v2 desktop Picture-in-Picture wrapper for [Norvane Idle](https://ro-idle.pages.dev/).
 
 ## E2E Demo
