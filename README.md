@@ -4,7 +4,9 @@ A cross-platform Tauri v2 desktop Picture-in-Picture wrapper for [Norvane Idle](
 
 ## E2E Demo
 
-See [docs/e2e-demo.mp4](docs/e2e-demo.mp4) for an end-to-end macOS recording demonstrating compact PiP mode, HUD toggle (compact & expanded), Always-on-Top pin toggle, and compact/expanded window switching.
+![Norvane PiP E2E Demo](docs/e2e-demo.gif)
+
+Full-resolution recording: [docs/e2e-demo.mp4](docs/e2e-demo.mp4) (compact PiP mode, HUD toggle in compact & expanded layouts, Always-on-Top pin toggle, and compact/expanded window switching).
 
 ## Features
 
