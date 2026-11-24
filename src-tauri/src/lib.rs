@@ -234,6 +234,7 @@ impl PipState {
             self.update_active_position(pos);
         }
         self.compact_mode = !self.compact_mode;
+        self.hud_hidden = self.compact_mode;
         let saved_target_pos = if self.compact_mode {
             self.compact_position
         } else {
@@ -245,6 +246,7 @@ impl PipState {
     pub fn reset_compact(&mut self) -> (f64, f64) {
         self.compact_size = DEFAULT_COMPACT_SIZE;
         self.compact_mode = true;
+        self.hud_hidden = true;
         self.compact_size
     }
 }
@@ -1327,19 +1329,21 @@ mod tests {
     fn switching_compact_mode_preserves_resized_dimensions_and_positions() {
         let mut state = PipState::default();
 
-        // Compact at bottom-right (1460, 720), resized to 520x340 -> expand.
+        // Compact at bottom-right (1460, 720), resized to 520x340 -> expand (shows HUD by default).
         let (expanded_size, expanded_pos) =
             state.switch_compact_mode(Some((520.0, 340.0)), Some((1460, 720)));
         assert!(!state.compact_mode);
+        assert!(!state.hud_hidden);
         assert_eq!(expanded_size, DEFAULT_EXPANDED_SIZE);
         assert_eq!(expanded_pos, None);
         assert_eq!(state.compact_size, (520.0, 340.0));
         assert_eq!(state.compact_position, Some((1460, 720)));
 
-        // Expanded centered at (410, 180), resized to 1280x800 -> back to compact.
+        // Expanded centered at (410, 180), resized to 1280x800 -> back to compact (hides HUD by default).
         let (compact_size, compact_pos) =
             state.switch_compact_mode(Some((1280.0, 800.0)), Some((410, 180)));
         assert!(state.compact_mode);
+        assert!(state.hud_hidden);
         assert_eq!(compact_size, (520.0, 340.0));
         assert_eq!(compact_pos, Some((1460, 720)));
         assert_eq!(state.expanded_size, (1280.0, 800.0));
