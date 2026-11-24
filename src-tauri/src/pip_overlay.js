@@ -42,6 +42,41 @@
   };
 
   const CSS = `
+    :root {
+      --np-bar-h: 34px;
+    }
+
+    html.norvane-pip-hide-hud:has(:is(.sala-de-caca, .layout-flutuante-mapa) .campo) {
+      --np-bar-h: 0px;
+    }
+
+    /* When game HUD is visible (or on start/town screens), reserve a slim 34px top bar
+       so the PiP drag handle and controls never overlap Norvane Idle's header buttons. */
+    #root {
+      padding-top: calc(12px + var(--np-bar-h)) !important;
+    }
+
+    .app-shell.caca-pc .layout-flutuante {
+      --topo-do-layout: calc(56px + var(--np-bar-h)) !important;
+    }
+
+    .app-shell.caca-pc .app-actions {
+      top: calc(52px + var(--np-bar-h)) !important;
+      max-height: calc(100vh - 62px - var(--np-bar-h)) !important;
+    }
+
+    .app-shell.caca-cheia {
+      --topo-da-caca: calc(50px + var(--np-bar-h) + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .app-shell.caca-cheia > .app-header {
+      top: var(--np-bar-h) !important;
+    }
+
+    .modal-backdrop {
+      top: var(--np-bar-h) !important;
+    }
+
     /* Hide Norvane Idle HUD overlays whenever an active hunting map is mounted —
        both compact mode (.sala-de-caca .campo) and expanded desktop mode (.layout-flutuante-mapa .campo) —
        so start screens, character creation, town panels, and modals remain usable. */
@@ -119,17 +154,34 @@
       border-radius: 0 !important;
     }
 
-    /* Native Picture-in-Picture top hover bar mounted outside React's #root. */
+    /* Top PiP bar mounted outside React's #root.
+       Docked as a slim 34px bar when HUD is visible; hover-only floating overlay when HUD is hidden. */
     #${CHROME_ID} {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
-      height: 44px;
+      height: 34px;
       z-index: 2147483647;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
+      padding: 0 8px;
+      background: rgba(20, 18, 15, 0.94);
+      border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(14px) saturate(1.4);
+      -webkit-backdrop-filter: blur(14px) saturate(1.4);
+      opacity: 1;
+      transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease;
+      pointer-events: auto;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html.norvane-pip-hide-hud:has(:is(.sala-de-caca, .layout-flutuante-mapa) .campo) #${CHROME_ID} {
+      height: 44px;
+      align-items: flex-start;
       padding: 8px 10px 0;
       background: linear-gradient(
         180deg,
@@ -137,12 +189,11 @@
         rgba(0, 0, 0, 0.22) 60%,
         rgba(0, 0, 0, 0) 100%
       );
+      border-bottom: 0;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
       opacity: 0;
-      transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
       pointer-events: none;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
     }
 
     /* Subtle hairline inner frame like native macOS PiP */
@@ -158,7 +209,7 @@
     html.norvane-pip-hover #${CHROME_ID},
     #${CHROME_ID}:hover,
     #${CHROME_ID}:focus-within {
-      opacity: 1;
+      opacity: 1 !important;
     }
 
     #${CHROME_ID} .np-group {

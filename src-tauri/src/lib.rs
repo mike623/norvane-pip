@@ -146,6 +146,8 @@ pub struct PipState {
     pub compact_size: (f64, f64),
     pub expanded_size: (f64, f64),
     pub position: Option<(i32, i32)>,
+    pub compact_position: Option<(i32, i32)>,
+    pub expanded_position: Option<(i32, i32)>,
 }
 
 impl Default for PipState {
@@ -159,6 +161,8 @@ impl Default for PipState {
             compact_size: DEFAULT_COMPACT_SIZE,
             expanded_size: DEFAULT_EXPANDED_SIZE,
             position: None,
+            compact_position: None,
+            expanded_position: None,
         }
     }
 }
@@ -176,6 +180,14 @@ impl PipState {
         )
     }
 
+    pub fn active_position(&self) -> Option<(i32, i32)> {
+        if self.compact_mode {
+            self.compact_position.or(self.position)
+        } else {
+            self.expanded_position.or(self.position)
+        }
+    }
+
     pub fn update_active_size(&mut self, logical_size: (f64, f64)) {
         let clamped = (
             logical_size.0.max(MIN_WINDOW_SIZE.0),
@@ -185,6 +197,15 @@ impl PipState {
             self.compact_size = clamped;
         } else {
             self.expanded_size = clamped;
+        }
+    }
+
+    pub fn update_active_position(&mut self, pos: (i32, i32)) {
+        self.position = Some(pos);
+        if self.compact_mode {
+            self.compact_position = Some(pos);
+        } else {
+            self.expanded_position = Some(pos);
         }
     }
 
@@ -199,14 +220,26 @@ impl PipState {
         }
     }
 
-    /// Switches between compact PiP size and expanded size, preserving the current
-    /// window dimensions for whichever mode we are leaving.
-    pub fn switch_compact_mode(&mut self, current_logical_size: Option<(f64, f64)>) -> (f64, f64) {
+    /// Switches between compact PiP size and expanded size, preserving both
+    /// dimensions and window position for whichever mode we are leaving.
+    pub fn switch_compact_mode(
+        &mut self,
+        current_logical_size: Option<(f64, f64)>,
+        current_pos: Option<(i32, i32)>,
+    ) -> ((f64, f64), Option<(i32, i32)>) {
         if let Some(size) = current_logical_size {
             self.update_active_size(size);
         }
+        if let Some(pos) = current_pos {
+            self.update_active_position(pos);
+        }
         self.compact_mode = !self.compact_mode;
-        self.active_size()
+        let saved_target_pos = if self.compact_mode {
+            self.compact_position
+        } else {
+            self.expanded_position
+        };
+        (self.active_size(), saved_target_pos)
     }
 
     pub fn reset_compact(&mut self) -> (f64, f64) {
@@ -462,7 +495,7 @@ fn save_current_window_geometry(app: &AppHandle, override_pos: Option<(i32, i32)
             return;
         };
         if let Some(p) = pos {
-            guard.position = Some(p);
+            guard.update_active_position(p);
         }
         if let Some(s) = size {
             guard.update_active_size(s);
@@ -719,29 +752,66 @@ fn apply_toggle_compact_size(app: &AppHandle, toast: bool) -> Result<PipStateSna
     let window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
         .ok_or_else(|| "Main window not found".to_string())?;
-    let current = current_logical_window_size(&window);
+    let current_size = current_logical_window_size(&window);
+    let current_pos = window.outer_position().ok().map(|p| (p.x, p.y));
 
     let managed = app.state::<ManagedPipState>();
-    let (target_size, snapshot, state_copy) = {
+    let (target_size, saved_target_pos, snapshot, state_copy) = {
         let mut guard = managed.state.lock().map_err(|_| "State lock poisoned")?;
-        let target = guard.switch_compact_mode(current);
-        (target, guard.snapshot(), guard.clone())
+        let (target, saved_pos) = guard.switch_compact_mode(current_size, current_pos);
+        (target, saved_pos, guard.snapshot(), guard.clone())
     };
     managed.persist_snapshot(&state_copy);
 
-    window
-        .set_size(Size::Logical(LogicalSize::new(
-            target_size.0,
-            target_size.1,
-        )))
-        .map_err(|err| err.to_string())?;
+    let animating = Arc::clone(&app.state::<SnapController>().animating);
+    animating.store(true, Ordering::SeqCst);
 
-    if snapshot.compact_mode && snapshot.snap_to_corners {
-        let animating = Arc::clone(&app.state::<SnapController>().animating);
+    if let Err(err) = window.set_size(Size::Logical(LogicalSize::new(
+        target_size.0,
+        target_size.1,
+    ))) {
+        animating.store(false, Ordering::SeqCst);
+        return Err(err.to_string());
+    }
+
+    let win_size = window
+        .outer_size()
+        .map(|s| (s.width as i32, s.height as i32))
+        .unwrap_or((target_size.0 as i32, target_size.1 as i32));
+    let work_areas = all_monitor_work_areas(&window);
+    let valid_saved_pos =
+        saved_target_pos.filter(|&pos| position_is_visible(pos, win_size, &work_areas));
+
+    if let Some(target_pos) = valid_saved_pos {
+        if snapshot.compact_mode {
+            let from = window
+                .outer_position()
+                .ok()
+                .map(|p| (p.x, p.y))
+                .unwrap_or(target_pos);
+            glide_window_to(app.clone(), &window, from, target_pos, Some(animating));
+        } else {
+            let _ = window.set_position(Position::Physical(PhysicalPosition::new(
+                target_pos.0,
+                target_pos.1,
+            )));
+            save_current_window_geometry(app, Some(target_pos));
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(60));
+                animating.store(false, Ordering::SeqCst);
+            });
+        }
+    } else if snapshot.compact_mode && snapshot.snap_to_corners {
         stick_window_to_border(app, &window, None, true, Some(animating));
     } else if !snapshot.compact_mode {
         let _ = window.center();
         save_current_window_geometry(app, None);
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(60));
+            animating.store(false, Ordering::SeqCst);
+        });
+    } else {
+        animating.store(false, Ordering::SeqCst);
     }
 
     let msg = if toast {
@@ -1100,7 +1170,7 @@ pub fn run() {
 
             let animating = Arc::clone(&app.state::<SnapController>().animating);
             let mut restored_position = false;
-            if let Some(saved_pos) = loaded_state.position {
+            if let Some(saved_pos) = loaded_state.active_position() {
                 let win_size = window
                     .outer_size()
                     .map(|s| (s.width as i32, s.height as i32))
@@ -1254,24 +1324,32 @@ mod tests {
     }
 
     #[test]
-    fn switching_compact_mode_preserves_resized_dimensions() {
+    fn switching_compact_mode_preserves_resized_dimensions_and_positions() {
         let mut state = PipState::default();
 
-        let expanded = state.switch_compact_mode(Some((520.0, 340.0)));
+        // Compact at bottom-right (1460, 720), resized to 520x340 -> expand.
+        let (expanded_size, expanded_pos) =
+            state.switch_compact_mode(Some((520.0, 340.0)), Some((1460, 720)));
         assert!(!state.compact_mode);
-        assert_eq!(expanded, DEFAULT_EXPANDED_SIZE);
+        assert_eq!(expanded_size, DEFAULT_EXPANDED_SIZE);
+        assert_eq!(expanded_pos, None);
         assert_eq!(state.compact_size, (520.0, 340.0));
+        assert_eq!(state.compact_position, Some((1460, 720)));
 
-        let compact = state.switch_compact_mode(Some((1280.0, 800.0)));
+        // Expanded centered at (410, 180), resized to 1280x800 -> back to compact.
+        let (compact_size, compact_pos) =
+            state.switch_compact_mode(Some((1280.0, 800.0)), Some((410, 180)));
         assert!(state.compact_mode);
-        assert_eq!(compact, (520.0, 340.0));
+        assert_eq!(compact_size, (520.0, 340.0));
+        assert_eq!(compact_pos, Some((1460, 720)));
         assert_eq!(state.expanded_size, (1280.0, 800.0));
+        assert_eq!(state.expanded_position, Some((410, 180)));
     }
 
     #[test]
     fn reset_compact_restores_default_size_and_mode() {
         let mut state = PipState::default();
-        state.switch_compact_mode(Some((600.0, 400.0)));
+        state.switch_compact_mode(Some((600.0, 400.0)), Some((100, 100)));
         assert!(!state.compact_mode);
 
         let size = state.reset_compact();
@@ -1338,6 +1416,8 @@ mod tests {
             compact_size: (500.0, 310.0),
             expanded_size: (1240.0, 780.0),
             position: Some((1440, 680)),
+            compact_position: Some((1440, 680)),
+            expanded_position: Some((340, 140)),
         };
 
         save_preferences(&path, &saved).expect("save should succeed");

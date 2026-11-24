@@ -1,6 +1,6 @@
 [package]
 name = "norvane-pip"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cross-platform Tauri v2 Picture-in-Picture desktop wrapper for Norvane Idle"
 authors = ["Norvane PiP Contributors"]
 edition = "2021"
